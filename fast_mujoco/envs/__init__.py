@@ -1,0 +1,1 @@
+from fast_mujoco.envs.humanoid_treadmill import HumanoidTreadmillEnv
