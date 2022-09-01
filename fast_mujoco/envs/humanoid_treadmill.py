@@ -31,7 +31,7 @@ class HumanoidTreadmillEnv(MujocoEnv, utils.EzPickle):
             "single_rgb_array",
             "single_depth_array",
         ],
-        "render_fps": 125,
+        "render_fps": 100,
     }
 
     def __init__(self, healthy_z_range=(1.0, 4.0), args=None, **kwargs):
@@ -132,9 +132,9 @@ class HumanoidTreadmillEnv(MujocoEnv, utils.EzPickle):
         pos_ref = ref[0:3]
         pos = self.data.qpos[0:3]
         pos_reward = 1 * (0 - self.data.qvel[0]) ** 2 + \
-                     0.01 * (pos_ref[1] - pos[1]) ** 2 + (pos_ref[2] - pos[2]) ** 2 + \
-                     0.1 * (np.sum(self.data.cvel[3, 0])) ** 2 + \
-                     0.1 * (np.sum(self.data.cvel[3, 1])) ** 2
+                     0.01 * (pos_ref[1] - pos[1]) ** 2 + (pos_ref[2] - pos[2]) ** 2 #+ \
+                     # 0.1 * (np.sum(self.data.cvel[3, 0])) ** 2 + \
+                     # 0.1 * (np.sum(self.data.cvel[3, 1])) ** 2
 
         pos_reward = np.exp(-1 * pos_reward)
 
@@ -174,13 +174,12 @@ class HumanoidTreadmillEnv(MujocoEnv, utils.EzPickle):
             self.data.qvel[-1] = -self.treadmill_velocity
 
             self.do_simulation(torque / 100, 1)
-        self.renderer.render_step()
-
             # self.set_state(target_ref, self.init_qvel)
+
+        self.renderer.render_step()
 
         observation = self._get_obs()
         reward = self.calc_reward(target_ref)
-        # print(reward)
 
         terminated = self.terminated
         info = {}

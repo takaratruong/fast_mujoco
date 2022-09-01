@@ -1,0 +1,28 @@
+## Logistics ##
+env_id = 'Humanoid_Treadmill'
+xml_file = 'humanoid.xml'
+project = humanoid
+
+alg = ppo
+wandb = True
+
+## Environment and Training Parameters ##
+vid_rec_freq = 150
+frame_skip = 4
+num_envs = 50
+max_ep_time = 4 #* .01/.0025
+treadmill_velocity = .8
+
+## Models ##
+agent_hidden_layers = [256, 256]
+disc_hidden_layers = [128, 128]
+
+agent_obs_size = 70
+
+## Gait Parameters ##
+gait_ref_path = fast_mujoco/envs/subject1_walk_treadmill.txt
+gait_cycle_time = 1.0
+
+## Reward and Action Parameters: ##
+phase_action_mag = .04
+

@@ -8,7 +8,7 @@ import wandb
 import os
 from scipy.interpolate import interp1d
 import ipdb
-
+from copy import deepcopy
 from algs.amp_models import ActorCriticNet, Discriminator
 # from mocap.mocap import MoCap
 
@@ -79,7 +79,7 @@ class RL(object):
         self.num_inputs = int(env.single_observation_space.shape[0])
         self.num_outputs = int(env.single_action_space.shape[0])
 
-        self.time_step = env.get_attr('time_step')[0]
+        # self.time_step = env.get_attr('time_step')[0]
         self.num_envs = env.num_envs
 
         self.num_env_steps = 100  # int(args.max_ep_time / self.time_step *args.frame_skip)
@@ -130,11 +130,8 @@ class RL(object):
         self.critic_optimizer = optim.AdamW(self.gpu_model.parameters(), lr=1e-4)
 
     def collect_samples_vec(self, num_samples, start_state=None, noise=-2.5, env_index=0, random_seed=1):
-        if self.start_state is None:
-            state = self.env.reset()
-        else:
-            # state = self.start_state
-            state = np.asarray(self.env.get_attr('get_obs'))
+
+        state = np.asarray(self.env.get_attr('get_obs'))
 
         samples = 0
         states = []
@@ -154,7 +151,7 @@ class RL(object):
 
         state = torch.from_numpy(state).to(device).type(torch.cuda.FloatTensor)
         while samples < num_samples:
-            # print('-'*50)
+
             with torch.no_grad():
                 action, mean_action = self.gpu_model.sample_actions(state)
                 log_prob = self.gpu_model.calculate_prob(state, action, mean_action)
@@ -162,31 +159,24 @@ class RL(object):
             states.append(state.clone())
             actions.append(action.clone())
             log_probs.append(log_prob.clone())
+
             next_state, reward, terminated, done, info = self.env.step(action.cpu().numpy())
-            unmodified_next_state = torch.from_numpy(next_state).to(device).type(torch.cuda.FloatTensor)
 
-            done_or_term = [a or b for a, b in zip(terminated, done)]
 
-            # done = np.array(terminated)
-
-            if np.sum(np.array(done_or_term)) >= 1:
-                next_state[np.where(np.array(done_or_term) == 1)] = info['final_observation'][np.where(np.array(done_or_term) == 1)][0]
-
-            # rewards.append(reward.clone())
             next_state = torch.from_numpy(next_state).to(device).type(torch.cuda.FloatTensor)
-            # self.start_state = next_state.cpu().detach().numpy()
             reward = torch.from_numpy(reward).to(device).type(torch.cuda.FloatTensor)
             terminated = torch.from_numpy(np.array(terminated)).to(device).type(torch.cuda.IntTensor)
 
-            terminateds.append(terminated.clone())
 
+            state = next_state.clone()
+
+            terminateds.append(terminated.clone())
             next_states.append(next_state.clone())
 
             if self.args.alg == 'amp':
                 reward = self.discriminator.compute_disc_reward(state[:, :-1], next_state[:, :-1])  # DISC
             rewards.append(reward.clone())
 
-            state = unmodified_next_state.clone()
 
             samples += 1
 
@@ -201,6 +191,12 @@ class RL(object):
         for i in range(num_samples):
             self.storage.push(states[i], actions[i], next_states[i], rewards[i], q_values[i], log_probs[i], self.num_envs)
 
+# done_or_term = [a or b for a, b in zip(terminated, done)]
+
+# done = np.array(terminated)
+
+# if np.sum(np.array(done_or_term)) >= 1:
+#      next_state[np.where(np.array(done_or_term) == 1)] = deepcopy(info['final_observation'][np.where(np.array(done_or_term) == 1)][0])
 
     def sample_expert_motion(self, batch_size):
         states, next_states = self.mocap.sample_expert(batch_size)
